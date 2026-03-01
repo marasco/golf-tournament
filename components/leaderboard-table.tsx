@@ -47,17 +47,17 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
               </th>
               <th
                 className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
-                onClick={() => setSortBy("gross")}
-              >
-                <span className="hidden md:inline">Total </span>Bruto{" "}
-                {sortBy === "gross" && "↓"}
-              </th>
-              <th
-                className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
                 onClick={() => setSortBy("net")}
               >
                 <span className="hidden md:inline">Total </span>Neto{" "}
                 {sortBy === "net" && "↓"}
+              </th>
+              <th
+                className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
+                onClick={() => setSortBy("gross")}
+              >
+                <span className="hidden md:inline">Total </span>Bruto{" "}
+                {sortBy === "gross" && "↓"}
               </th>
               {events.map((event) => (
                 <th
@@ -82,11 +82,11 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
                 <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {player.player.name}
                 </td>
-                <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-medium">
-                  {player.totalGross}
-                </td>
                 <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-bold text-augusta-green">
                   {player.totalNet}
+                </td>
+                <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-medium">
+                  {player.totalGross}
                 </td>
                 {events.map((event) => {
                   const eventScore = player.events[event.id];

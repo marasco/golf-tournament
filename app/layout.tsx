@@ -54,7 +54,6 @@ export default function RootLayout({
           <div className="container mx-auto px-4 text-center">
             <p className="text-sm">
               &copy; {new Date().getFullYear()} Polla Atlántica. Torneo de Golf
-              Cariló.
             </p>
           </div>
         </footer>
