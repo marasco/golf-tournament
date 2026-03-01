@@ -63,38 +63,38 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-white text-lg drop-shadow">Cargando...</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+      <div className="border-b border-gray-200 overflow-x-auto">
+        <nav className="-mb-px flex space-x-4 md:space-x-8 min-w-max md:min-w-0">
           <button
             onClick={() => setActiveTab("players")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+            className={`py-4 px-2 md:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
               activeTab === "players"
                 ? "border-augusta-green text-augusta-green"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
           >
-            Players ({players.length})
+            Jugadores ({players.length})
           </button>
           <button
             onClick={() => setActiveTab("events")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+            className={`py-4 px-2 md:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
               activeTab === "events"
                 ? "border-augusta-green text-augusta-green"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
           >
-            Events ({events.length})
+            Eventos ({events.length})
           </button>
           <button
             onClick={() => setActiveTab("scores")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+            className={`py-4 px-2 md:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
               activeTab === "scores"
                 ? "border-augusta-green text-augusta-green"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"

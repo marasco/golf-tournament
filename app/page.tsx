@@ -51,17 +51,17 @@ export default async function Home() {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-augusta-green mb-2">
-          Tournament Leaderboard
+        <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">
+          Leaderboard
         </h1>
-        <p className="text-gray-600">Current standings and scores</p>
+        <p className="text-white text-lg drop-shadow">Posiciones y scores del torneo</p>
       </div>
 
       <LeaderboardTable players={players} events={events} />
 
-      <div className="text-center text-sm text-gray-500">
-        <p>Net Score = Gross Score - Handicap</p>
-        <p>Lower scores are better</p>
+      <div className="text-center text-sm text-white drop-shadow">
+        <p>Score Neto = Score Bruto - Handicap</p>
+        <p>Menor puntaje gana</p>
       </div>
     </div>
   );

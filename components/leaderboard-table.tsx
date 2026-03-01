@@ -26,45 +26,47 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
 
   if (players.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-        <p>No scores available yet. Check back soon!</p>
+      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow p-6 md:p-8 text-center text-gray-600">
+        <p className="text-lg">No hay scores disponibles todavía.</p>
+        <p className="text-sm mt-2">¡Vuelve pronto para ver las posiciones!</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-augusta-green text-white">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+              <th className="px-3 md:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
                 Pos
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                Player
+              <th className="px-3 md:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                Jugador
+              </th>
+              <th
+                className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
+                onClick={() => setSortBy("gross")}
+              >
+                <span className="hidden md:inline">Total </span>Bruto{" "}
+                {sortBy === "gross" && "↓"}
+              </th>
+              <th
+                className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
+                onClick={() => setSortBy("net")}
+              >
+                <span className="hidden md:inline">Total </span>Neto{" "}
+                {sortBy === "net" && "↓"}
               </th>
               {events.map((event) => (
                 <th
                   key={event.id}
-                  className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider"
+                  className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider"
                 >
                   <div>{event.name}</div>
-                  <div className="text-[10px] font-normal">{event.course_name}</div>
                 </th>
               ))}
-              <th
-                className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
-                onClick={() => setSortBy("gross")}
-              >
-                Total Gross {sortBy === "gross" && "↓"}
-              </th>
-              <th
-                className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
-                onClick={() => setSortBy("net")}
-              >
-                Total Net {sortBy === "net" && "↓"}
-              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -73,19 +75,25 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
                 key={player.player.id}
                 className={idx < 3 ? "bg-augusta-gold bg-opacity-10" : ""}
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {player.position === 1 && "🏆 "}
                   {player.position}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {player.player.name}
+                </td>
+                <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-medium">
+                  {player.totalGross}
+                </td>
+                <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-bold text-augusta-green">
+                  {player.totalNet}
                 </td>
                 {events.map((event) => {
                   const eventScore = player.events[event.id];
                   return (
                     <td
                       key={event.id}
-                      className="px-6 py-4 whitespace-nowrap text-sm text-center"
+                      className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center"
                     >
                       {eventScore ? (
                         <div>
@@ -100,12 +108,6 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
                     </td>
                   );
                 })}
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium">
-                  {player.totalGross}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-bold text-augusta-green">
-                  {player.totalNet}
-                </td>
               </tr>
             ))}
           </tbody>

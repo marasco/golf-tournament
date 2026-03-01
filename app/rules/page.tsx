@@ -12,12 +12,11 @@ export default function RulesPage() {
               Salidas y Campo
             </h2>
             <ul className="list-disc list-inside space-y-2 ml-4">
-              <li>
-                Se jugará exclusivamente desde bochas blancas.
-              </li>
+              <li>Se jugará exclusivamente desde bochas blancas.</li>
               <li>
                 Si el club recomienda otra salida por condiciones específicas,
-                todos los jugadores deberán salir de la misma marca sin excepción.
+                todos los jugadores deberán salir de la misma marca sin
+                excepción.
               </li>
             </ul>
           </section>
@@ -28,11 +27,13 @@ export default function RulesPage() {
             </h2>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>
-                El ganador del torneo debe haber completado al menos 3 de las 4 fechas.
+                El ganador del torneo debe haber completado al menos 3 de las 4
+                fechas.
               </li>
               <li>
                 Si un jugador no puede asistir a una fecha (máximo una), debe
-                seleccionar a un compañero del torneo antes del inicio del evento.
+                seleccionar a un compañero del torneo antes del inicio del
+                evento.
               </li>
               <li>
                 En la fecha de ausencia, se le asignará el score neto obtenido
@@ -64,12 +65,12 @@ export default function RulesPage() {
             </h2>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>
-                El peor score neto de cada día será el responsable de la limpieza
-                de la cocina esa noche.
+                El peor score neto de cada día será el responsable de la
+                limpieza de la cocina esa noche.
               </li>
               <li>
                 <strong>Hoyo en 1 o Águila:</strong> El jugador debe pagar la
-                cena de todo el grupo.
+                cena o almuerzo de todo el grupo.
               </li>
               <li>
                 <strong>No pasar estacas rojas desde el tee:</strong> El jugador
@@ -88,7 +89,8 @@ export default function RulesPage() {
                 ronda (multa a convenir).
               </li>
               <li>
-                Salidas del último día por orden de mérito (el líder sale al final).
+                Salidas del último día por orden de mérito (el líder sale al
+                final).
               </li>
               <li>
                 Se recomienda llevar un registro diario de &quot;deudas&quot; de
