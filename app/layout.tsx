@@ -34,7 +34,7 @@ export default function RootLayout({
         </main>
 
         {/* Sponsors section */}
-        <section className="container relative z-10">
+        <section className="fluid-container mx-auto relative z-10">
           <div className="bg-white shadow-lg p-6 md:p-8">
             <h2 className="text-2xl md:text-3xl font-bold text-augusta-green text-center mb-6">
               Sponsors
