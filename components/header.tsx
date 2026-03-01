@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export function Header() {
@@ -5,8 +6,15 @@ export function Header() {
     <header className="bg-augusta-green text-white shadow-lg">
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <h1 className="text-2xl md:text-3xl font-bold">Golf Tournament</h1>
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/logopolla.png"
+              alt="Polla Atlántica"
+              width={180}
+              height={60}
+              className="h-10 md:h-14 w-auto"
+              priority
+            />
           </Link>
           <nav className="flex items-center space-x-6">
             <Link
@@ -19,7 +27,7 @@ export function Header() {
               href="/rules"
               className="hover:text-augusta-gold transition-colors"
             >
-              Rules
+              Reglas
             </Link>
           </nav>
         </div>
