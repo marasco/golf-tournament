@@ -65,8 +65,8 @@ export default function RulesPage() {
             </h2>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>
-                El peor score neto de cada día será el responsable de la
-                limpieza de la cocina esa noche.
+                Los 2 scores más bajos (Neto) de cada día serán responsables de
+                la limpieza de la cocina esa noche.
               </li>
               <li>
                 <strong>Hoyo en 1 o Águila:</strong> El jugador debe pagar la
@@ -79,33 +79,16 @@ export default function RulesPage() {
             </ul>
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-augusta-green mb-3">
-              Reglas Adicionales Sugeridas
-            </h2>
-            <ul className="list-disc list-inside space-y-2 ml-4">
-              <li>
-                Prohibido el uso de celulares para temas laborales durante la
-                ronda (multa a convenir).
-              </li>
-              <li>
-                Salidas del último día por orden de mérito (el líder sale al
-                final).
-              </li>
-              <li>
-                Se recomienda llevar un registro diario de &quot;deudas&quot; de
-                cervezas y multas para liquidar al final del viaje.
-              </li>
-            </ul>
-          </section>
-
           <section className="bg-augusta-green bg-opacity-10 p-4 rounded-lg">
             <h2 className="text-xl font-semibold text-augusta-green mb-3">
               ¡Buena Suerte!
             </h2>
             <p className="text-gray-700">
-              Disfruten del torneo, jueguen limpio y que gane el mejor.
-              Recuerden que el golf es un deporte de honor e integridad.
+              Levantar piques
+              <br />
+              Mantener el ritmo de juego
+              <br />
+              No lapicear
             </p>
           </section>
         </div>
