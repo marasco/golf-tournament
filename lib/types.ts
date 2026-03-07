@@ -1,3 +1,12 @@
+export interface Tournament {
+  id: string;
+  name: string;
+  description?: string;
+  year: number;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -9,6 +18,7 @@ export interface Event {
   name: string;
   course_name: string;
   date: string;
+  tournament_id?: string;
   created_at: string;
 }
 

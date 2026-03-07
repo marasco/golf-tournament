@@ -107,7 +107,7 @@ export function ScoreForm({
             <option value="">Select Event</option>
             {events.map((event) => (
               <option key={event.id} value={event.id}>
-                {event.name} ({new Date(event.date).toLocaleDateString()})
+                {event.name} ({event.date.split("-").reverse().slice(0, 2).join("/")})
               </option>
             ))}
           </Select>

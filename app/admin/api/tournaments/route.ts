@@ -3,22 +3,22 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const { name, course_name, date, tournament_id } = await request.json();
+    const { name, description, year, is_active } = await request.json();
 
-    if (!name || !name.trim() || !course_name || !course_name.trim() || !date) {
+    if (!name || !name.trim() || !year) {
       return NextResponse.json(
-        { error: "All fields are required" },
+        { error: "Name and year are required" },
         { status: 400 }
       );
     }
 
     const { data, error } = await supabaseServer
-      .from("events")
+      .from("tournaments")
       .insert({
         name: name.trim(),
-        course_name: course_name.trim(),
-        date,
-        tournament_id: tournament_id || null,
+        description: description?.trim() || null,
+        year: parseInt(year),
+        is_active: is_active ?? false,
       })
       .select()
       .single();
@@ -27,9 +27,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Error creating event:", error);
+    console.error("Error creating tournament:", error);
     return NextResponse.json(
-      { error: "Failed to create event" },
+      { error: "Failed to create tournament" },
       { status: 500 }
     );
   }

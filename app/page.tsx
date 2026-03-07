@@ -1,67 +1,63 @@
-import { LeaderboardTable } from "@/components/leaderboard-table";
 import { supabaseClient } from "@/lib/supabase/client";
-import { Event, LeaderboardPlayer, Player, Score } from "@/lib/types";
+import { Tournament } from "@/lib/types";
+import Link from "next/link";
 
-async function getLeaderboardData() {
-  // Fetch all data
-  const [playersRes, eventsRes, scoresRes] = await Promise.all([
-    supabaseClient.from("players").select("*").order("name"),
-    supabaseClient.from("events").select("*").order("date"),
-    supabaseClient.from("scores").select("*"),
-  ]);
-
-  const players = (playersRes.data || []) as Player[];
-  const events = (eventsRes.data || []) as Event[];
-  const scores = (scoresRes.data || []) as Score[];
-
-  // Build leaderboard data
-  const leaderboardPlayers: LeaderboardPlayer[] = players.map((player) => {
-    const playerScores = scores.filter((s) => s.player_id === player.id);
-
-    const eventScores: LeaderboardPlayer["events"] = {};
-    let totalGross = 0;
-    let totalNet = 0;
-
-    playerScores.forEach((score) => {
-      const net = score.gross_score - score.handicap;
-      eventScores[score.event_id] = {
-        gross: score.gross_score,
-        net,
-        handicap: score.handicap,
-      };
-      totalGross += score.gross_score;
-      totalNet += net;
-    });
-
-    return {
-      player,
-      events: eventScores,
-      totalGross,
-      totalNet,
-      position: 0, // Will be calculated in component
-    };
-  });
-
-  return { players: leaderboardPlayers, events };
+async function getTournaments() {
+  const { data } = await supabaseClient
+    .from("tournaments")
+    .select("*")
+    .order("year", { ascending: false })
+    .order("created_at", { ascending: false });
+  return (data || []) as Tournament[];
 }
 
 export default async function Home() {
-  const { players, events } = await getLeaderboardData();
+  const tournaments = await getTournaments();
 
   return (
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">
-          Leaderboard
+          Torneos
         </h1>
-        <p className="text-white text-lg drop-shadow">Posiciones y scores del torneo</p>
+        <p className="text-white text-lg drop-shadow">
+          Seleccioná un torneo para ver el leaderboard
+        </p>
       </div>
 
-      <LeaderboardTable players={players} events={events} />
-
-      <div className="text-center text-sm text-white drop-shadow">
-        <p>Score Neto = Score Bruto - Handicap</p>
-        <p>Menor puntaje gana</p>
+      <div className="space-y-6">
+        {tournaments.length === 0 ? (
+          <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow p-8 text-center text-gray-600">
+            <p className="text-lg">No hay torneos disponibles todavía.</p>
+          </div>
+        ) : (
+          tournaments.map((tournament) => (
+            <Link key={tournament.id} href={`/tournaments/${tournament.id}`}>
+              <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-pointer mb-3 p-6 border border-white/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-augusta-green">
+                      {tournament.name}
+                    </h2>
+                    {tournament.description && (
+                      <p className="text-gray-600 text-sm mt-1">
+                        {tournament.description}
+                      </p>
+                    )}
+                    <p className="text-gray-500 text-sm mt-1">
+                      {tournament.year}
+                    </p>
+                  </div>
+                  {tournament.is_active && (
+                    <span className="bg-augusta-green text-white text-xs font-medium px-3 py-1 rounded-full">
+                      Activo
+                    </span>
+                  )}
+                </div>
+              </div>
+            </Link>
+          ))
+        )}
       </div>
     </div>
   );

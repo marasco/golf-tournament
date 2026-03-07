@@ -2,19 +2,22 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Event } from "@/lib/types";
+import { Select } from "@/components/ui/select";
+import { Event, Tournament } from "@/lib/types";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
 interface EventFormProps {
   events: Event[];
+  tournaments: Tournament[];
 }
 
-export function EventForm({ events: initialEvents }: EventFormProps) {
+export function EventForm({ events: initialEvents, tournaments }: EventFormProps) {
   const [events, setEvents] = useState(initialEvents);
   const [name, setName] = useState("");
   const [courseName, setCourseName] = useState("");
   const [date, setDate] = useState("");
+  const [tournamentId, setTournamentId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -33,6 +36,7 @@ export function EventForm({ events: initialEvents }: EventFormProps) {
           name: name.trim(),
           course_name: courseName.trim(),
           date,
+          tournament_id: tournamentId || null,
         }),
       });
 
@@ -43,6 +47,7 @@ export function EventForm({ events: initialEvents }: EventFormProps) {
       setName("");
       setCourseName("");
       setDate("");
+      setTournamentId("");
     } catch (err) {
       setError("Failed to create event");
       console.error(err);
@@ -69,6 +74,9 @@ export function EventForm({ events: initialEvents }: EventFormProps) {
     }
   };
 
+  const tournamentById = (id?: string) =>
+    tournaments.find((t) => t.id === id);
+
   return (
     <div className="space-y-4">
       <form onSubmit={handleSubmit} className="space-y-3">
@@ -91,6 +99,14 @@ export function EventForm({ events: initialEvents }: EventFormProps) {
             onChange={(e) => setDate(e.target.value)}
           />
         </div>
+        <Select value={tournamentId} onChange={(e) => setTournamentId(e.target.value)}>
+          <option value="">Sin torneo</option>
+          {tournaments.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name} ({t.year})
+            </option>
+          ))}
+        </Select>
         <Button
           type="submit"
           disabled={loading || !name.trim() || !courseName.trim() || !date}
@@ -111,26 +127,35 @@ export function EventForm({ events: initialEvents }: EventFormProps) {
             No events yet. Add one above.
           </div>
         ) : (
-          events.map((event) => (
-            <div
-              key={event.id}
-              className="px-4 py-3 flex items-center justify-between hover:bg-gray-50"
-            >
-              <div>
-                <div className="font-medium">{event.name}</div>
-                <div className="text-sm text-gray-600">
-                  {event.course_name} • {new Date(event.date).toLocaleDateString()}
-                </div>
-              </div>
-              <button
-                onClick={() => handleDelete(event.id)}
-                className="text-red-600 hover:text-red-700 p-1"
-                title="Delete event"
+          events.map((event) => {
+            const tournament = tournamentById(event.tournament_id);
+            return (
+              <div
+                key={event.id}
+                className="px-4 py-3 flex items-center justify-between hover:bg-gray-50"
               >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))
+                <div>
+                  <div className="font-medium">{event.name}</div>
+                  <div className="text-sm text-gray-600">
+                    {event.course_name} •{" "}
+                    {new Date(event.date + "T00:00:00").toLocaleDateString("es-AR", { timeZone: "UTC" })}
+                    {tournament && (
+                      <span className="ml-2 text-xs text-augusta-green font-medium">
+                        {tournament.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDelete(event.id)}
+                  className="text-red-600 hover:text-red-700 p-1"
+                  title="Delete event"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            );
+          })
         )}
       </div>
     </div>
