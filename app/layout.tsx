@@ -33,7 +33,7 @@ export default function RootLayout({
           {children}
         </main>
 
-        {/* Sponsors section */}
+        {/* Sponsors section
         <section className="fluid-container mx-auto relative z-10">
           <div className="bg-white shadow-lg p-6 md:p-8">
             <h2 className="text-2xl md:text-3xl font-bold text-augusta-green text-center mb-6">
@@ -47,7 +47,7 @@ export default function RootLayout({
               />
             </div>
           </div>
-        </section>
+        </section>*/}
 
         {/* Footer with solid background */}
         <footer className="bg-augusta-green text-white py-6 relative z-10">
