@@ -1,6 +1,34 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const { data: round } = await supabaseServer
+      .from("rounds")
+      .select("status")
+      .eq("id", id)
+      .single();
+
+    if (!round) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (round.status === "completed") {
+      return NextResponse.json({ error: "Cannot delete a completed round" }, { status: 400 });
+    }
+
+    const { error } = await supabaseServer.from("rounds").delete().eq("id", id);
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting round:", error);
+    return NextResponse.json({ error: "Failed to delete round" }, { status: 500 });
+  }
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
