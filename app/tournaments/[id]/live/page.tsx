@@ -257,14 +257,7 @@ function LiveTable({
                 className={idx < 3 && hasPlayed ? "bg-augusta-gold/10" : ""}
               >
                 <td className="px-3 py-3 font-medium text-gray-700">
-                  {hasPlayed ? (
-                    <>
-                      {idx === 0 && "🏆 "}
-                      {idx + 1}
-                    </>
-                  ) : (
-                    "—"
-                  )}
+                  {hasPlayed ? <>{idx + 1}</> : "—"}
                 </td>
                 <td className="px-3 py-3 font-medium text-gray-900">
                   {isMyRound ? (

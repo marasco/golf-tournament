@@ -29,6 +29,31 @@ export async function DELETE(
   }
 }
 
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const { status } = await request.json();
+
+    if (status !== "in_progress") {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+
+    const { error } = await supabaseServer
+      .from("rounds")
+      .update({ status })
+      .eq("id", id);
+
+    if (error) throw error;
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error updating round:", error);
+    return NextResponse.json({ error: "Failed to update round" }, { status: 500 });
+  }
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

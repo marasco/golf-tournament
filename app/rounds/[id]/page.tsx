@@ -145,6 +145,7 @@ export default function RoundPage({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("");
   const [offlineCount, setOfflineCount] = useState(0);
   const [completing, setCompleting] = useState(false);
+  const [reopening, setReopening] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [noCourse, setNoCourse] = useState(false);
   const { player: currentPlayer } = useCurrentPlayer();
@@ -335,6 +336,25 @@ export default function RoundPage({
   };
 
   // ── Actions ───────────────────────────────────────────────────────────────
+
+  const handleReopen = async () => {
+    if (!confirm("¿Reabrir la ronda para seguir editando scores?")) return;
+    setReopening(true);
+    try {
+      const res = await fetch(`/api/rounds/${roundId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "in_progress" }),
+      });
+      if (!res.ok) {
+        alert("Error al reabrir la ronda");
+        return;
+      }
+      setRound((r) => r ? { ...r, status: "in_progress" } : r);
+    } finally {
+      setReopening(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (
@@ -684,11 +704,22 @@ export default function RoundPage({
           )}
         </div>
       ) : (
-        <div className="text-center bg-white/20 text-white py-3 rounded-lg text-sm font-medium">
-          ✓ Ronda finalizada —{" "}
-          <span className="font-bold">
-            {holes.reduce((s, h) => s + (h.strokes || 0), 0)} golpes
+        <div className="bg-white/20 text-white py-3 px-4 rounded-lg text-sm font-medium flex items-center justify-between">
+          <span>
+            ✓ Finalizada —{" "}
+            <span className="font-bold">
+              {holes.reduce((s, h) => s + (h.strokes || 0), 0)} golpes
+            </span>
           </span>
+          {isScorer && (
+            <button
+              onClick={handleReopen}
+              disabled={reopening}
+              className="text-white/70 hover:text-white underline text-xs disabled:opacity-40"
+            >
+              {reopening ? "Reabriendo..." : "Reabrir"}
+            </button>
+          )}
         </div>
       )}
 
