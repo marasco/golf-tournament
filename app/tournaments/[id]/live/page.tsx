@@ -46,8 +46,15 @@ export default function LiveLeaderboardPage({
   useEffect(() => {
     const fetchData = async () => {
       const [tournamentRes, eventsRes] = await Promise.all([
-        supabaseClient.from("tournaments").select("name").eq("id", tournamentId).single(),
-        supabaseClient.from("events").select("id, date, course_id").eq("tournament_id", tournamentId),
+        supabaseClient
+          .from("tournaments")
+          .select("name")
+          .eq("id", tournamentId)
+          .single(),
+        supabaseClient
+          .from("events")
+          .select("id, date, course_id")
+          .eq("tournament_id", tournamentId),
       ]);
 
       if (!mountedRef.current) return;
@@ -68,7 +75,9 @@ export default function LiveLeaderboardPage({
       const [roundsRes, holesRes] = await Promise.all([
         supabaseClient
           .from("rounds")
-          .select("id, player_id, scorer_id, event_id, handicap, status, player:players!player_id(name)")
+          .select(
+            "id, player_id, scorer_id, event_id, handicap, status, player:players!player_id(name)",
+          )
           .in("event_id", eventIds),
         courseIds.length > 0
           ? supabaseClient
@@ -101,14 +110,18 @@ export default function LiveLeaderboardPage({
 
       const liveRows: LiveRow[] = rounds.map((round: any) => {
         const event = events.find((e: any) => e.id === round.event_id);
-        const courseHoles = holes.filter((h: any) => h.course_id === event?.course_id);
+        const courseHoles = holes.filter(
+          (h: any) => h.course_id === event?.course_id,
+        );
         const roundScores = (holeScores || []).filter(
-          (hs: any) => hs.round_id === round.id
+          (hs: any) => hs.round_id === round.id,
         );
 
         const holesPlayed = roundScores.length;
         const strokesVsPar = roundScores.reduce((sum: number, hs: any) => {
-          const hole = courseHoles.find((h: any) => h.hole_number === hs.hole_number);
+          const hole = courseHoles.find(
+            (h: any) => h.hole_number === hs.hole_number,
+          );
           return sum + (hs.strokes - (hole?.par ?? 4));
         }, 0);
         const projectedNet = strokesVsPar - round.handicap;
@@ -158,11 +171,14 @@ export default function LiveLeaderboardPage({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-white drop-shadow-lg">Tablero en Vivo</h1>
+        <h1 className="text-3xl font-bold text-white drop-shadow-lg">
+          Tablero en Vivo
+        </h1>
         <p className="text-white/80 text-sm drop-shadow">{tournamentName}</p>
         {lastUpdated && (
           <p className="text-white/50 text-xs mt-1">
-            Actualizado: {lastUpdated.toLocaleTimeString("es-AR")} · auto-refresh 30s
+            Actualizado: {lastUpdated.toLocaleTimeString("es-AR")} ·
+            auto-refresh 30s
           </p>
         )}
         <button
@@ -176,7 +192,10 @@ export default function LiveLeaderboardPage({
       {rows.length === 0 ? (
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow p-8 text-center text-gray-500">
           <p>No hay rondas en curso todavía.</p>
-          <a href="/play" className="text-augusta-green hover:underline text-sm mt-2 block">
+          <a
+            href="/play"
+            className="text-augusta-green hover:underline text-sm mt-2 block"
+          >
             Iniciar un partido →
           </a>
         </div>
@@ -187,7 +206,10 @@ export default function LiveLeaderboardPage({
               <h2 className="text-white/80 text-sm font-semibold uppercase tracking-wide">
                 En juego ({inProgress.length})
               </h2>
-              <LiveTable rows={inProgress} currentPlayerId={currentPlayer?.id} />
+              <LiveTable
+                rows={inProgress}
+                currentPlayerId={currentPlayer?.id}
+              />
             </div>
           )}
           {completed.length > 0 && (
@@ -200,15 +222,6 @@ export default function LiveLeaderboardPage({
           )}
         </>
       )}
-
-      <div className="text-center pb-4">
-        <a
-          href={`/tournaments/${tournamentId}`}
-          className="text-white/70 hover:text-white text-sm underline"
-        >
-          ← Ver leaderboard del torneo
-        </a>
-      </div>
     </div>
   );
 }
@@ -236,7 +249,8 @@ function LiveTable({
         <tbody className="divide-y divide-gray-100">
           {rows.map((row, idx) => {
             const hasPlayed = row.holesPlayed > 0;
-            const isMyRound = currentPlayerId && row.scorerId === currentPlayerId;
+            const isMyRound =
+              currentPlayerId && row.scorerId === currentPlayerId;
             return (
               <tr
                 key={row.roundId}
@@ -254,7 +268,10 @@ function LiveTable({
                 </td>
                 <td className="px-3 py-3 font-medium text-gray-900">
                   {isMyRound ? (
-                    <a href={`/rounds/${row.roundId}`} className="text-augusta-green underline">
+                    <a
+                      href={`/rounds/${row.roundId}`}
+                      className="text-augusta-green underline"
+                    >
                       {row.playerName}
                     </a>
                   ) : (
@@ -272,10 +289,10 @@ function LiveTable({
                     !hasPlayed
                       ? "text-gray-300"
                       : row.strokesVsPar < 0
-                      ? "text-augusta-green"
-                      : row.strokesVsPar === 0
-                      ? "text-gray-600"
-                      : "text-red-500"
+                        ? "text-augusta-green"
+                        : row.strokesVsPar === 0
+                          ? "text-gray-600"
+                          : "text-red-500"
                   }`}
                 >
                   {hasPlayed ? formatVsPar(row.strokesVsPar) : "—"}
@@ -285,10 +302,10 @@ function LiveTable({
                     !hasPlayed
                       ? "text-gray-300"
                       : row.projectedNet < 0
-                      ? "text-augusta-green"
-                      : row.projectedNet === 0
-                      ? "text-gray-600"
-                      : "text-red-500"
+                        ? "text-augusta-green"
+                        : row.projectedNet === 0
+                          ? "text-gray-600"
+                          : "text-red-500"
                   }`}
                 >
                   {hasPlayed ? formatVsPar(row.projectedNet) : "—"}
