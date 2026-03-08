@@ -3,8 +3,8 @@ import "./globals.css";
 import { Header } from "@/components/header";
 
 export const metadata: Metadata = {
-  title: "Polla Atlántica - Torneo de Golf",
-  description: "Leaderboard del torneo de golf de 4 días",
+  title: "Biguá Golf",
+  description: "Leaderboard de los Biguá",
 };
 
 export default function RootLayout({

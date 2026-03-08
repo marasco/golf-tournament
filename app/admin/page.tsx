@@ -1,14 +1,15 @@
 "use client";
 
 import { supabaseClient } from "@/lib/supabase/client";
-import { Event, Player, ScoreWithDetails, Tournament } from "@/lib/types";
+import { Course, Event, Hole, Player, ScoreWithDetails, Tournament } from "@/lib/types";
 import { useEffect, useState } from "react";
+import { CourseForm } from "./components/course-form";
 import { EventForm } from "./components/event-form";
 import { PlayerForm } from "./components/player-form";
 import { ScoreForm } from "./components/score-form";
 import { TournamentForm } from "./components/tournament-form";
 
-type Tab = "tournaments" | "players" | "events" | "scores";
+type Tab = "tournaments" | "players" | "events" | "scores" | "courses";
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>("tournaments");
@@ -16,6 +17,7 @@ export default function AdminPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [scores, setScores] = useState<ScoreWithDetails[]>([]);
+  const [courses, setCourses] = useState<(Course & { holes: Hole[] })[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,12 +27,15 @@ export default function AdminPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [tournamentsRes, playersRes, eventsRes, scoresRes] = await Promise.all([
-        supabaseClient.from("tournaments").select("*").order("year", { ascending: false }),
-        supabaseClient.from("players").select("*").order("name"),
-        supabaseClient.from("events").select("*").order("date", { ascending: true }),
-        supabaseClient.from("scores").select("*"),
-      ]);
+      const [tournamentsRes, playersRes, eventsRes, scoresRes, coursesRes, holesRes] =
+        await Promise.all([
+          supabaseClient.from("tournaments").select("*").order("year", { ascending: false }),
+          supabaseClient.from("players").select("*").order("name"),
+          supabaseClient.from("events").select("*").order("date", { ascending: true }),
+          supabaseClient.from("scores").select("*"),
+          supabaseClient.from("courses").select("*").order("name"),
+          supabaseClient.from("holes").select("*").order("hole_number"),
+        ]);
 
       const tournamentsData = (tournamentsRes.data || []) as Tournament[];
       const playersData = (playersRes.data || []) as Player[];
@@ -53,10 +58,17 @@ export default function AdminPage() {
         };
       });
 
+      const holesData = (holesRes.data || []) as Hole[];
+      const coursesData = ((coursesRes.data || []) as Course[]).map((c) => ({
+        ...c,
+        holes: holesData.filter((h) => h.course_id === c.id),
+      }));
+
       setTournaments(tournamentsData);
       setPlayers(playersData);
       setEvents(eventsData);
       setScores(enrichedScores);
+      setCourses(coursesData);
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -77,6 +89,7 @@ export default function AdminPage() {
     { key: "players", label: "Jugadores", count: players.length },
     { key: "events", label: "Eventos", count: events.length },
     { key: "scores", label: "Scores", count: scores.length },
+    { key: "courses", label: "Canchas", count: courses.length },
   ];
 
   return (
@@ -106,6 +119,7 @@ export default function AdminPage() {
         {activeTab === "scores" && (
           <ScoreForm players={players} events={events} scores={scores} />
         )}
+        {activeTab === "courses" && <CourseForm courses={courses} />}
       </div>
     </div>
   );

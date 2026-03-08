@@ -1,3 +1,35 @@
+export interface Course {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface Hole {
+  id: string;
+  course_id: string;
+  hole_number: number;
+  par: number;
+}
+
+export interface Round {
+  id: string;
+  event_id: string;
+  player_id: string;
+  scorer_id: string;
+  handicap: number;
+  status: "in_progress" | "completed";
+  created_at: string;
+}
+
+export interface HoleScore {
+  id: string;
+  round_id: string;
+  hole_number: number;
+  strokes: number | null;
+  scorer_strokes: number | null;
+  updated_at: string;
+}
+
 export interface Tournament {
   id: string;
   name: string;

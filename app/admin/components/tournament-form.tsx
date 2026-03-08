@@ -54,6 +54,27 @@ export function TournamentForm({ tournaments: initialTournaments }: TournamentFo
     }
   };
 
+  const handleToggleActive = async (id: string, currentActive: boolean) => {
+    try {
+      const response = await fetch(`/admin/api/tournaments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: !currentActive }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update tournament");
+
+      setTournaments(
+        tournaments.map((t) =>
+          t.id === id ? { ...t, is_active: !currentActive } : t
+        )
+      );
+    } catch (err) {
+      setError("Failed to update tournament");
+      console.error(err);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("¿Eliminar este torneo? Los eventos quedarán sin torneo asignado.")) return;
 
@@ -130,20 +151,28 @@ export function TournamentForm({ tournaments: initialTournaments }: TournamentFo
                 <div className="text-sm text-gray-600">
                   {tournament.year}
                   {tournament.description && ` • ${tournament.description}`}
-                  {tournament.is_active && (
-                    <span className="ml-2 text-xs bg-augusta-green text-white px-2 py-0.5 rounded-full">
-                      Activo
-                    </span>
-                  )}
                 </div>
               </div>
-              <button
-                onClick={() => handleDelete(tournament.id)}
-                className="text-red-600 hover:text-red-700 p-1"
-                title="Eliminar torneo"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleToggleActive(tournament.id, tournament.is_active)}
+                  className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
+                    tournament.is_active
+                      ? "bg-augusta-green text-white hover:bg-red-600"
+                      : "bg-gray-100 text-gray-600 hover:bg-augusta-green hover:text-white"
+                  }`}
+                  title={tournament.is_active ? "Marcar como inactivo" : "Marcar como activo"}
+                >
+                  {tournament.is_active ? "Activo" : "Inactivo"}
+                </button>
+                <button
+                  onClick={() => handleDelete(tournament.id)}
+                  className="text-red-600 hover:text-red-700 p-1"
+                  title="Eliminar torneo"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))
         )}

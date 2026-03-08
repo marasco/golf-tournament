@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCurrentPlayer } from "@/lib/use-current-player";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { player, logout, loaded } = useCurrentPlayer();
 
   return (
     <header className="bg-augusta-green text-white shadow-lg">
@@ -15,7 +17,7 @@ export function Header() {
           <Link href="/" className="flex items-center">
             <Image
               src="/logopolla.png"
-              alt="Polla Atlántica"
+              alt="Biguá Golf"
               width={180}
               height={60}
               className="h-14 w-auto"
@@ -23,18 +25,26 @@ export function Header() {
             />
           </Link>
           <nav className="flex items-center space-x-6">
-            <Link
-              href="/"
-              className="hover:text-augusta-gold transition-colors"
-            >
+            <Link href="/" className="hover:text-augusta-gold transition-colors">
               Leaderboard
             </Link>
-            <Link
-              href="/rules"
-              className="hover:text-augusta-gold transition-colors"
-            >
+            <Link href="/play" className="hover:text-augusta-gold transition-colors font-semibold">
+              Jugar
+            </Link>
+            <Link href="/rules" className="hover:text-augusta-gold transition-colors">
               Reglas
             </Link>
+            {loaded && player && (
+              <div className="flex items-center gap-2 text-sm border-l border-white/30 pl-6">
+                <span className="text-white/80">{player.name}</span>
+                <button
+                  onClick={logout}
+                  className="text-white/50 hover:text-white transition-colors text-xs underline"
+                >
+                  Cambiar
+                </button>
+              </div>
+            )}
           </nav>
         </div>
 
@@ -43,7 +53,7 @@ export function Header() {
           <Link href="/" className="flex items-center">
             <Image
               src="/logopolla.png"
-              alt="Polla Atlántica"
+              alt="Biguá Golf"
               width={180}
               height={60}
               className="h-10 w-auto"
@@ -109,18 +119,13 @@ export function Header() {
           </button>
         </div>
         <nav className="flex flex-col px-6 space-y-6">
-          <Link
-            href="/"
-            onClick={() => setMenuOpen(false)}
-            className="text-lg font-semibold hover:text-augusta-gold transition-colors"
-          >
+          <Link href="/" onClick={() => setMenuOpen(false)} className="text-lg font-semibold hover:text-augusta-gold transition-colors">
             Leaderboard
           </Link>
-          <Link
-            href="/rules"
-            onClick={() => setMenuOpen(false)}
-            className="text-lg font-semibold hover:text-augusta-gold transition-colors"
-          >
+          <Link href="/play" onClick={() => setMenuOpen(false)} className="text-lg font-semibold hover:text-augusta-gold transition-colors">
+            Jugar
+          </Link>
+          <Link href="/rules" onClick={() => setMenuOpen(false)} className="text-lg font-semibold hover:text-augusta-gold transition-colors">
             Reglas
           </Link>
         </nav>
