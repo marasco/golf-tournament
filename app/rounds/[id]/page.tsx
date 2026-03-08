@@ -28,7 +28,7 @@ interface RoundDetail {
   };
 }
 
-type SaveStatus = "" | "saving" | "saved" | "error";
+type SaveStatus = "" | "saving" | "saved" | "error" | "offline";
 
 function formatVsPar(n: number) {
   if (n > 0) return `+${n}`;
@@ -40,6 +40,96 @@ function getLastName(name: string) {
   const parts = name.trim().split(" ");
   return parts[parts.length - 1];
 }
+
+// ── Offline helpers ──────────────────────────────────────────────────────────
+
+function cacheKey(roundId: string) {
+  return `round_cache_${roundId}`;
+}
+function queueKey(roundId: string) {
+  return `round_queue_${roundId}`;
+}
+
+function readCache(roundId: string): any | null {
+  try {
+    const raw = localStorage.getItem(cacheKey(roundId));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(roundId: string, data: any) {
+  try {
+    localStorage.setItem(cacheKey(roundId), JSON.stringify(data));
+  } catch {}
+}
+
+type QueueEntry = { strokes: number | null; scorer_strokes: number | null };
+
+function readQueue(roundId: string): Record<number, QueueEntry> {
+  try {
+    const raw = localStorage.getItem(queueKey(roundId));
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeQueue(roundId: string, queue: Record<number, QueueEntry>) {
+  try {
+    localStorage.setItem(queueKey(roundId), JSON.stringify(queue));
+  } catch {}
+}
+
+function removeFromQueue(roundId: string, holeNumber: number) {
+  const q = readQueue(roundId);
+  delete q[holeNumber];
+  writeQueue(roundId, q);
+}
+
+function addToQueue(
+  roundId: string,
+  holeNumber: number,
+  data: QueueEntry
+) {
+  const q = readQueue(roundId);
+  q[holeNumber] = data;
+  writeQueue(roundId, q);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildHolesFromData(data: any): HoleData[] {
+  const scoresMap: Record<number, QueueEntry> = {};
+  (data.hole_scores || []).forEach((hs: any) => {
+    scoresMap[hs.hole_number] = {
+      strokes: hs.strokes ?? null,
+      scorer_strokes: hs.scorer_strokes ?? null,
+    };
+  });
+
+  const holesData: HoleData[] = (data.holes || []).map((h: any) => ({
+    id: h.id,
+    hole_number: h.hole_number,
+    par: h.par,
+    strokes: scoresMap[h.hole_number]?.strokes ?? null,
+    scorer_strokes: scoresMap[h.hole_number]?.scorer_strokes ?? null,
+  }));
+
+  for (let i = holesData.length + 1; i <= 18; i++) {
+    holesData.push({
+      id: "",
+      hole_number: i,
+      par: 4,
+      strokes: scoresMap[i]?.strokes ?? null,
+      scorer_strokes: scoresMap[i]?.scorer_strokes ?? null,
+    });
+  }
+  return holesData;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function RoundPage({
   params,
@@ -53,19 +143,75 @@ export default function RoundPage({
   const [partnerMap, setPartnerMap] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("");
+  const [offlineCount, setOfflineCount] = useState(0);
   const [completing, setCompleting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [noCourse, setNoCourse] = useState(false);
   const { player: currentPlayer } = useCurrentPlayer();
 
   const saveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
-  const pendingScores = useRef<
-    Record<number, { strokes: number | null; scorer_strokes: number | null }>
-  >({});
+  const pendingScores = useRef<Record<number, QueueEntry>>({});
+
+  // ── Load round (network first, cache fallback) ──────────────────────────
+
+  const applyRoundData = useCallback(
+    (data: any, mergeOfflineQueue = false) => {
+      setRound(data);
+
+      if (!data.event?.course_id) {
+        setNoCourse(true);
+        return;
+      }
+
+      let holesData = buildHolesFromData(data);
+
+      // Overlay any unsaved offline entries on top of server data
+      if (mergeOfflineQueue) {
+        const queue = readQueue(roundId);
+        holesData = holesData.map((h) => {
+          const queued = queue[h.hole_number];
+          return queued ? { ...h, ...queued } : h;
+        });
+        setOfflineCount(Object.keys(queue).length);
+      }
+
+      setHoles(holesData);
+
+      const mirror: Record<number, number> = {};
+      (data.mirror_hole_scores || []).forEach((hs: any) => {
+        if (hs.strokes != null) mirror[hs.hole_number] = hs.strokes;
+      });
+      setPartnerMap(mirror);
+    },
+    [roundId]
+  );
 
   useEffect(() => {
-    loadRound();
-  }, [roundId]);
+    const loadRound = async () => {
+      try {
+        const res = await fetch(`/api/rounds/${roundId}`);
+        if (res.ok) {
+          const data = await res.json();
+          writeCache(roundId, data);
+          applyRoundData(data, true);
+          return;
+        }
+      } catch {
+        // network failure — fall through to cache
+      }
+
+      // Offline fallback
+      const cached = readCache(roundId);
+      if (cached) {
+        applyRoundData(cached, true);
+      }
+      setLoading(false);
+    };
+
+    loadRound().finally(() => setLoading(false));
+  }, [roundId, applyRoundData]);
+
+  // ── Mirror polling (every 1 min, silent on failure) ──────────────────────
 
   useEffect(() => {
     const refreshMirror = async () => {
@@ -73,80 +219,64 @@ export default function RoundPage({
         const res = await fetch(`/api/rounds/${roundId}`);
         if (!res.ok) return;
         const data = await res.json();
+        writeCache(roundId, data);
         const mirror: Record<number, number> = {};
         (data.mirror_hole_scores || []).forEach((hs: any) => {
           if (hs.strokes != null) mirror[hs.hole_number] = hs.strokes;
         });
         setPartnerMap(mirror);
-      } catch {
-        // silently ignore polling errors
-      }
+      } catch {}
     };
 
-    const interval = setInterval(refreshMirror, 1 * 60 * 1000);
+    const interval = setInterval(refreshMirror, 60 * 1000);
     return () => clearInterval(interval);
   }, [roundId]);
 
-  const loadRound = async () => {
-    try {
-      const res = await fetch(`/api/rounds/${roundId}`);
-      if (!res.ok) return;
+  // ── Offline queue flush when connection returns ───────────────────────────
 
-      const data = await res.json();
-      setRound(data);
+  const flushQueue = useCallback(async () => {
+    const queue = readQueue(roundId);
+    const entries = Object.entries(queue) as [string, QueueEntry][];
+    if (entries.length === 0) return;
 
-      if (!data.event?.course_id) {
-        setNoCourse(true);
-        setLoading(false);
-        return;
-      }
+    setSaveStatus("saving");
+    let remaining = entries.length;
 
-      const scoresMap: Record<
-        number,
-        { strokes: number | null; scorer_strokes: number | null }
-      > = {};
-      (data.hole_scores || []).forEach((hs: any) => {
-        scoresMap[hs.hole_number] = {
-          strokes: hs.strokes ?? null,
-          scorer_strokes: hs.scorer_strokes ?? null,
-        };
-      });
-
-      const holesData: HoleData[] = (data.holes || []).map((h: any) => ({
-        id: h.id,
-        hole_number: h.hole_number,
-        par: h.par,
-        strokes: scoresMap[h.hole_number]?.strokes ?? null,
-        scorer_strokes: scoresMap[h.hole_number]?.scorer_strokes ?? null,
-      }));
-
-      for (let i = holesData.length + 1; i <= 18; i++) {
-        holesData.push({
-          id: "",
-          hole_number: i,
-          par: 4,
-          strokes: scoresMap[i]?.strokes ?? null,
-          scorer_strokes: scoresMap[i]?.scorer_strokes ?? null,
+    for (const [holeStr, data] of entries) {
+      const holeNumber = parseInt(holeStr);
+      try {
+        const res = await fetch(`/api/rounds/${roundId}/hole-scores`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hole_number: holeNumber, ...data }),
         });
-      }
-
-      setHoles(holesData);
-
-      // Build partner map: what the player recorded for the scorer's strokes
-      const mirror: Record<number, number> = {};
-      (data.mirror_hole_scores || []).forEach((hs: any) => {
-        if (hs.strokes != null) mirror[hs.hole_number] = hs.strokes;
-      });
-      setPartnerMap(mirror);
-    } finally {
-      setLoading(false);
+        if (res.ok) {
+          removeFromQueue(roundId, holeNumber);
+          remaining--;
+        }
+      } catch {}
     }
-  };
+
+    setOfflineCount(remaining);
+    if (remaining === 0) {
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus((s) => (s === "saved" ? "" : s)), 2000);
+    } else {
+      setSaveStatus("offline");
+    }
+  }, [roundId]);
+
+  useEffect(() => {
+    window.addEventListener("online", flushQueue);
+    return () => window.removeEventListener("online", flushQueue);
+  }, [flushQueue]);
+
+  // ── Save hole (queues offline if no connection) ───────────────────────────
 
   const saveHole = useCallback(
     async (
       holeNumber: number,
-      data: { strokes: number | null; scorer_strokes: number | null },
+      data: QueueEntry
     ) => {
       setSaveStatus("saving");
       try {
@@ -156,19 +286,25 @@ export default function RoundPage({
           body: JSON.stringify({ hole_number: holeNumber, ...data }),
         });
         if (!res.ok) throw new Error();
+        removeFromQueue(roundId, holeNumber);
+        setOfflineCount(Object.keys(readQueue(roundId)).length);
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus((s) => (s === "saved" ? "" : s)), 2000);
       } catch {
-        setSaveStatus("error");
+        addToQueue(roundId, holeNumber, data);
+        setOfflineCount(Object.keys(readQueue(roundId)).length);
+        setSaveStatus("offline");
       }
     },
-    [roundId],
+    [roundId]
   );
+
+  // ── Input change handler ──────────────────────────────────────────────────
 
   const handleChange = (
     holeNumber: number,
     field: "strokes" | "scorer_strokes",
-    value: string,
+    value: string
   ) => {
     if (value !== "" && !/^\d+$/.test(value)) return;
 
@@ -176,8 +312,8 @@ export default function RoundPage({
 
     setHoles((prev) =>
       prev.map((h) =>
-        h.hole_number === holeNumber ? { ...h, [field]: num } : h,
-      ),
+        h.hole_number === holeNumber ? { ...h, [field]: num } : h
+      )
     );
 
     const current = pendingScores.current[holeNumber] ?? {
@@ -198,6 +334,8 @@ export default function RoundPage({
     }, 2000);
   };
 
+  // ── Actions ───────────────────────────────────────────────────────────────
+
   const handleDelete = async () => {
     if (
       !confirm("¿Cancelar esta ronda? Se borrarán todos los scores cargados.")
@@ -211,6 +349,10 @@ export default function RoundPage({
         alert(data.error || "Error al cancelar");
         return;
       }
+      try {
+        localStorage.removeItem(cacheKey(roundId));
+        localStorage.removeItem(queueKey(roundId));
+      } catch {}
       window.location.href = "/play";
     } finally {
       setDeleting(false);
@@ -218,10 +360,24 @@ export default function RoundPage({
   };
 
   const handleComplete = async () => {
-    if (
-      !confirm("¿Finalizar la ronda? No podrás modificar los scores después.")
-    )
-      return;
+    if (offlineCount > 0) {
+      if (
+        !confirm(
+          `Tenés ${offlineCount} score(s) sin sincronizar. ¿Intentar sincronizar y finalizar?`
+        )
+      )
+        return;
+      await flushQueue();
+      if (Object.keys(readQueue(roundId)).length > 0) {
+        alert("No se pudieron sincronizar todos los scores. Intentá con señal.");
+        return;
+      }
+    } else {
+      if (
+        !confirm("¿Finalizar la ronda? No podrás modificar los scores después.")
+      )
+        return;
+    }
     setCompleting(true);
     try {
       const res = await fetch(`/api/rounds/${roundId}/complete`, {
@@ -232,6 +388,10 @@ export default function RoundPage({
         alert(data.error || "Error al finalizar");
         return;
       }
+      try {
+        localStorage.removeItem(cacheKey(roundId));
+        localStorage.removeItem(queueKey(roundId));
+      } catch {}
       if (round?.event?.tournament_id) {
         window.location.href = `/tournaments/${round.event.tournament_id}`;
       } else {
@@ -241,6 +401,8 @@ export default function RoundPage({
       setCompleting(false);
     }
   };
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -269,12 +431,12 @@ export default function RoundPage({
 
   const isCompleted = round.status === "completed";
   const playedHoles = holes.filter(
-    (h) => h.strokes !== null || h.scorer_strokes !== null,
+    (h) => h.strokes !== null || h.scorer_strokes !== null
   );
   const holesWithStrokes = holes.filter((h) => h.strokes !== null);
   const strokesVsPar = holesWithStrokes.reduce(
     (sum, h) => sum + (h.strokes! - h.par),
-    0,
+    0
   );
   const projectedNet = strokesVsPar - round.handicap;
   const totalPar = holes.reduce((s, h) => s + h.par, 0);
@@ -328,10 +490,6 @@ export default function RoundPage({
                         ? partnerMap[hole.hole_number]
                         : undefined;
                       const myVal = hole.scorer_strokes;
-                      const match =
-                        partnerVal !== undefined &&
-                        myVal !== null &&
-                        myVal === partnerVal;
                       const mismatch =
                         partnerVal !== undefined &&
                         myVal !== null &&
@@ -349,7 +507,7 @@ export default function RoundPage({
                             handleChange(
                               hole.hole_number,
                               "scorer_strokes",
-                              e.target.value,
+                              e.target.value
                             )
                           }
                           className={`${inputClass} ${mismatch ? "bg-red-100 border-red-400 text-red-700" : ""}`}
@@ -368,7 +526,7 @@ export default function RoundPage({
                         handleChange(
                           hole.hole_number,
                           "strokes",
-                          e.target.value,
+                          e.target.value
                         )
                       }
                       className={inputClass}
@@ -380,10 +538,10 @@ export default function RoundPage({
                       vsParHole === null
                         ? "text-gray-300"
                         : vsParHole < 0
-                          ? "text-augusta-green"
-                          : vsParHole === 0
-                            ? "text-gray-500"
-                            : "text-red-500"
+                        ? "text-augusta-green"
+                        : vsParHole === 0
+                        ? "text-gray-500"
+                        : "text-red-500"
                     }`}
                   >
                     {vsParHole === null ? "—" : formatVsPar(vsParHole)}
@@ -416,23 +574,38 @@ export default function RoundPage({
           </tfoot>
         </table>
       </div>
-      {/* Save status */}
-      {saveStatus && (
+
+      {/* Save / offline status */}
+      {(saveStatus || offlineCount > 0) && (
         <div
-          className={`text-center text-sm py-1 rounded-lg ${
+          className={`text-center text-sm py-1.5 rounded-lg flex items-center justify-center gap-2 ${
             saveStatus === "saving"
               ? "bg-white/10 text-white/70"
               : saveStatus === "saved"
-                ? "bg-green-500/20 text-green-100"
-                : "bg-red-500/20 text-red-200"
+              ? "bg-green-500/20 text-green-100"
+              : offlineCount > 0 || saveStatus === "offline"
+              ? "bg-orange-500/80 text-white"
+              : "bg-red-500/20 text-red-200"
           }`}
         >
           {saveStatus === "saving" && "Guardando..."}
           {saveStatus === "saved" && "✓ Guardado"}
           {saveStatus === "error" && "Error al guardar"}
+          {(saveStatus === "offline" || (saveStatus === "" && offlineCount > 0)) && (
+            <>
+              <span>Sin señal — {offlineCount} score(s) pendiente(s)</span>
+              <button
+                onClick={flushQueue}
+                className="underline text-white/80 hover:text-white text-xs"
+              >
+                Reintentar
+              </button>
+            </>
+          )}
         </div>
       )}
-      {/* Player info + stats — below the scorecard */}
+
+      {/* Player info + stats */}
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow p-3">
         <div className="flex items-start justify-between">
           <div>
