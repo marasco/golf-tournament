@@ -50,6 +50,7 @@ export default function RoundPage({
 
   const [round, setRound] = useState<RoundDetail | null>(null);
   const [holes, setHoles] = useState<HoleData[]>([]);
+  const [partnerMap, setPartnerMap] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("");
   const [completing, setCompleting] = useState(false);
@@ -64,6 +65,26 @@ export default function RoundPage({
 
   useEffect(() => {
     loadRound();
+  }, [roundId]);
+
+  useEffect(() => {
+    const refreshMirror = async () => {
+      try {
+        const res = await fetch(`/api/rounds/${roundId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const mirror: Record<number, number> = {};
+        (data.mirror_hole_scores || []).forEach((hs: any) => {
+          if (hs.strokes != null) mirror[hs.hole_number] = hs.strokes;
+        });
+        setPartnerMap(mirror);
+      } catch {
+        // silently ignore polling errors
+      }
+    };
+
+    const interval = setInterval(refreshMirror, 1 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [roundId]);
 
   const loadRound = async () => {
@@ -110,6 +131,13 @@ export default function RoundPage({
       }
 
       setHoles(holesData);
+
+      // Build partner map: what the player recorded for the scorer's strokes
+      const mirror: Record<number, number> = {};
+      (data.mirror_hole_scores || []).forEach((hs: any) => {
+        if (hs.strokes != null) mirror[hs.hole_number] = hs.strokes;
+      });
+      setPartnerMap(mirror);
     } finally {
       setLoading(false);
     }
@@ -240,8 +268,11 @@ export default function RoundPage({
   }
 
   const isCompleted = round.status === "completed";
-  const playedHoles = holes.filter((h) => h.strokes !== null);
-  const strokesVsPar = playedHoles.reduce(
+  const playedHoles = holes.filter(
+    (h) => h.strokes !== null || h.scorer_strokes !== null,
+  );
+  const holesWithStrokes = holes.filter((h) => h.strokes !== null);
+  const strokesVsPar = holesWithStrokes.reduce(
     (sum, h) => sum + (h.strokes! - h.par),
     0,
   );
@@ -257,31 +288,14 @@ export default function RoundPage({
 
   return (
     <div className="max-w-lg mx-auto space-y-2 px-1">
-      {/* Save status */}
-      {saveStatus && (
-        <div
-          className={`text-center text-sm py-1 rounded-lg ${
-            saveStatus === "saving"
-              ? "bg-white/10 text-white/70"
-              : saveStatus === "saved"
-                ? "bg-green-500/20 text-green-100"
-                : "bg-red-500/20 text-red-200"
-          }`}
-        >
-          {saveStatus === "saving" && "Guardando..."}
-          {saveStatus === "saved" && "✓ Guardado"}
-          {saveStatus === "error" && "Error al guardar"}
-        </div>
-      )}
-
       {/* Scorecard */}
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
         <table className="w-full table-fixed text-base">
           <colgroup>
-            <col /> {/* Hoyo/Par: flexible */}
-            <col className="w-[35%]" /> {/* Scorer */}
-            <col className="w-[35%]" /> {/* Player */}
-            <col className="w-8" /> {/* +/- */}
+            <col />
+            <col className="w-[35%]" />
+            <col className="w-[35%]" />
+            <col className="w-12" />
           </colgroup>
           <thead className="bg-augusta-green text-white text-md">
             <tr>
@@ -309,21 +323,40 @@ export default function RoundPage({
                     </span>
                   </td>
                   <td className="px-1 py-1 text-center">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      disabled={isCompleted}
-                      value={hole.scorer_strokes ?? ""}
-                      onChange={(e) =>
-                        handleChange(
-                          hole.hole_number,
-                          "scorer_strokes",
-                          e.target.value,
-                        )
-                      }
-                      className={inputClass}
-                      style={{ minWidth: 0 }}
-                    />
+                    {(() => {
+                      const partnerVal = isScorer
+                        ? partnerMap[hole.hole_number]
+                        : undefined;
+                      const myVal = hole.scorer_strokes;
+                      const match =
+                        partnerVal !== undefined &&
+                        myVal !== null &&
+                        myVal === partnerVal;
+                      const mismatch =
+                        partnerVal !== undefined &&
+                        myVal !== null &&
+                        myVal !== partnerVal;
+                      return (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          disabled={isCompleted}
+                          value={myVal ?? ""}
+                          placeholder={
+                            partnerVal !== undefined ? String(partnerVal) : ""
+                          }
+                          onChange={(e) =>
+                            handleChange(
+                              hole.hole_number,
+                              "scorer_strokes",
+                              e.target.value,
+                            )
+                          }
+                          className={`${inputClass} ${mismatch ? "bg-red-100 border-red-400 text-red-700" : ""}`}
+                          style={{ minWidth: 0 }}
+                        />
+                      );
+                    })()}
                   </td>
                   <td className="px-1 py-1 text-center">
                     <input
@@ -362,7 +395,6 @@ export default function RoundPage({
           <tfoot className="bg-gray-100 border-t-2 border-gray-300 text-md font-bold">
             <tr>
               <td className="px-2 py-2 text-gray-600">
-                Total{" "}
                 <span className="text-md font-normal text-gray-400">
                   P{totalPar}
                 </span>
@@ -384,7 +416,22 @@ export default function RoundPage({
           </tfoot>
         </table>
       </div>
-
+      {/* Save status */}
+      {saveStatus && (
+        <div
+          className={`text-center text-sm py-1 rounded-lg ${
+            saveStatus === "saving"
+              ? "bg-white/10 text-white/70"
+              : saveStatus === "saved"
+                ? "bg-green-500/20 text-green-100"
+                : "bg-red-500/20 text-red-200"
+          }`}
+        >
+          {saveStatus === "saving" && "Guardando..."}
+          {saveStatus === "saved" && "✓ Guardado"}
+          {saveStatus === "error" && "Error al guardar"}
+        </div>
+      )}
       {/* Player info + stats — below the scorecard */}
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow p-3">
         <div className="flex items-start justify-between">

@@ -29,7 +29,7 @@ export default function RootLayout({
         <Header />
 
         {/* Main content */}
-        <main className="container mx-auto px-4 py-8 relative z-10">
+        <main className="container mx-auto px-0 sm:px-4 py-8 relative z-10">
           {children}
         </main>
       </body>

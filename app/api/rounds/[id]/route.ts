@@ -35,7 +35,6 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    console.log("[rounds/GET] id:", id);
 
     const { data: round, error: roundError } = await supabaseServer
       .from("rounds")
@@ -43,9 +42,8 @@ export async function GET(
       .eq("id", id)
       .single();
 
-    console.log("[rounds/GET] round:", round, "error:", roundError);
     if (roundError || !round) {
-      return NextResponse.json({ error: "Round not found", detail: roundError }, { status: 404 });
+      return NextResponse.json({ error: "Round not found" }, { status: 404 });
     }
 
     const [playerRes, scorerRes, eventRes] = await Promise.all([
@@ -54,20 +52,32 @@ export async function GET(
       supabaseServer.from("events").select("id, name, date, tournament_id, course_id").eq("id", round.event_id).single(),
     ]);
 
-    console.log("[rounds/GET] event:", eventRes.data, "error:", eventRes.error);
     const courseId = eventRes.data?.course_id;
-    console.log("[rounds/GET] courseId:", courseId);
 
-    const [holesRes, scoresRes] = await Promise.all([
+    const [holesRes, scoresRes, mirrorRoundRes] = await Promise.all([
       courseId
         ? supabaseServer.from("holes").select("id, hole_number, par").eq("course_id", courseId).order("hole_number")
         : Promise.resolve({ data: [], error: null }),
       supabaseServer.from("hole_scores").select("hole_number, strokes, scorer_strokes").eq("round_id", id),
+      // Mirror round: same event, where the scorer of this round is the player
+      supabaseServer
+        .from("rounds")
+        .select("id")
+        .eq("event_id", round.event_id)
+        .eq("player_id", round.scorer_id)
+        .maybeSingle(),
     ]);
 
-    console.log("[rounds/GET] holes count:", holesRes.data?.length, "error:", (holesRes as any).error);
-    console.log("[rounds/GET] hole_scores count:", scoresRes.data?.length, "error:", scoresRes.error);
-    console.log("[rounds/GET] hole_scores data:", JSON.stringify(scoresRes.data));
+    // Fetch mirror hole scores if mirror round exists
+    let mirrorHoleScores: { hole_number: number; strokes: number | null }[] = [];
+    if (mirrorRoundRes.data?.id) {
+      const { data: mirrorScores } = await supabaseServer
+        .from("hole_scores")
+        .select("hole_number, strokes")
+        .eq("round_id", mirrorRoundRes.data.id)
+        .not("strokes", "is", null);
+      mirrorHoleScores = mirrorScores || [];
+    }
 
     return NextResponse.json({
       ...round,
@@ -76,6 +86,7 @@ export async function GET(
       event: eventRes.data,
       holes: holesRes.data || [],
       hole_scores: scoresRes.data || [],
+      mirror_hole_scores: mirrorHoleScores,
     });
   } catch (error) {
     console.error("[rounds/GET] Exception:", error);
