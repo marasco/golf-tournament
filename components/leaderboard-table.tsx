@@ -129,7 +129,19 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
                     </td>
                     <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-bold text-augusta-green">
                       {hasScores ? (
-                        player.totalNet
+                        <span>
+                          {player.totalNet}{" "}
+                          {(() => {
+                            const rounds = Object.keys(player.events).length;
+                            const par = rounds * 72;
+                            const diff = player.totalNet - par;
+                            return (
+                              <span className="font-normal text-xs text-gray-500">
+                                ({diff > 0 ? `+${diff}` : diff === 0 ? "E" : diff})
+                              </span>
+                            );
+                          })()}
+                        </span>
                       ) : (
                         <span className="text-gray-400 font-normal text-xs">
                           NPT
