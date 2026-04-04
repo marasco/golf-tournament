@@ -8,30 +8,170 @@ interface LeaderboardTableProps {
   events: Event[];
 }
 
+type SortKey =
+  | "position"
+  | "player"
+  | "net"
+  | "gross"
+  | "matches"
+  | "avgNet"
+  | `event:${string}`;
+
+type SortDirection = "asc" | "desc";
+
 function shortEventHeader(event: Event): string {
   const [, month, day] = event.date.split("-");
   return `${parseInt(day)}/${parseInt(month)}`;
 }
 
 export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
-  const [sortBy, setSortBy] = useState<"net" | "gross">("net");
+  const [sortConfig, setSortConfig] = useState<{
+    key: SortKey;
+    direction: SortDirection;
+  }>({ key: "net", direction: "asc" });
   const [showEvents, setShowEvents] = useState(false);
 
   const manyEvents = events.length > 4;
 
-  const sortedPlayers = [...players].sort((a, b) => {
+  const rankedPlayers = [...players].sort((a, b) => {
     const aHasScores = Object.keys(a.events).length > 0;
     const bHasScores = Object.keys(b.events).length > 0;
     if (aHasScores && !bHasScores) return -1;
     if (!aHasScores && bHasScores) return 1;
     if (!aHasScores && !bHasScores) return 0;
-    if (sortBy === "net") return a.totalNet - b.totalNet;
-    return a.totalGross - b.totalGross;
+    return a.totalNet - b.totalNet;
   });
 
-  const playersWithPosition = sortedPlayers.map((player, index) => ({
+  const rankingByPlayerId = new Map(
+    rankedPlayers
+      .filter((player) => Object.keys(player.events).length > 0)
+      .map((player, index) => [player.player.id, index + 1] as const),
+  );
+
+  const getMatches = (player: LeaderboardPlayer) =>
+    Object.keys(player.events).length;
+
+  const getAverageNet = (player: LeaderboardPlayer): number | null => {
+    const matches = getMatches(player);
+    return matches > 0 ? player.totalNet / matches : null;
+  };
+
+  const getEventNet = (
+    player: LeaderboardPlayer,
+    eventId: string,
+  ): number | null => {
+    const eventScore = player.events[eventId];
+    return eventScore ? eventScore.net : null;
+  };
+
+  const compareNullableNumbers = (
+    a: number | null,
+    b: number | null,
+    direction: SortDirection,
+  ) => {
+    if (a === null && b === null) return 0;
+    if (a === null) return 1;
+    if (b === null) return -1;
+    return direction === "asc" ? a - b : b - a;
+  };
+
+  const compareBySortKey = (
+    a: LeaderboardPlayer,
+    b: LeaderboardPlayer,
+    key: SortKey,
+    direction: SortDirection,
+  ) => {
+    if (key === "player") {
+      const nameCompare = a.player.name.localeCompare(b.player.name, "es", {
+        sensitivity: "base",
+      });
+      return direction === "asc" ? nameCompare : -nameCompare;
+    }
+
+    if (key === "position") {
+      const aPosition = rankingByPlayerId.get(a.player.id) ?? null;
+      const bPosition = rankingByPlayerId.get(b.player.id) ?? null;
+      return compareNullableNumbers(aPosition, bPosition, direction);
+    }
+
+    if (key === "net") {
+      return compareNullableNumbers(
+        getMatches(a) > 0 ? a.totalNet : null,
+        getMatches(b) > 0 ? b.totalNet : null,
+        direction,
+      );
+    }
+
+    if (key === "gross") {
+      return compareNullableNumbers(
+        getMatches(a) > 0 ? a.totalGross : null,
+        getMatches(b) > 0 ? b.totalGross : null,
+        direction,
+      );
+    }
+
+    if (key === "matches") {
+      return compareNullableNumbers(getMatches(a), getMatches(b), direction);
+    }
+
+    if (key === "avgNet") {
+      return compareNullableNumbers(
+        getAverageNet(a),
+        getAverageNet(b),
+        direction,
+      );
+    }
+
+    if (key.startsWith("event:")) {
+      const eventId = key.replace("event:", "");
+      return compareNullableNumbers(
+        getEventNet(a, eventId),
+        getEventNet(b, eventId),
+        direction,
+      );
+    }
+
+    return 0;
+  };
+
+  const sortedPlayers = [...players].sort((a, b) => {
+    const primary = compareBySortKey(
+      a,
+      b,
+      sortConfig.key,
+      sortConfig.direction,
+    );
+    if (primary !== 0) return primary;
+
+    return a.player.name.localeCompare(b.player.name, "es", {
+      sensitivity: "base",
+    });
+  });
+
+  const handleSort = (key: SortKey) => {
+    setSortConfig((current: { key: SortKey; direction: SortDirection }) => {
+      if (current.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+
+      return {
+        key,
+        direction: "asc",
+      };
+    });
+  };
+
+  const sortIndicator = (key: SortKey) => {
+    if (sortConfig.key !== key) return "";
+    return sortConfig.direction === "asc" ? "↑" : "↓";
+  };
+
+  const playersWithPosition = sortedPlayers.map((player) => ({
     ...player,
-    position: index + 1,
+    position: rankingByPlayerId.get(player.player.id) ?? 0,
   }));
 
   if (players.length === 0) {
@@ -78,44 +218,70 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
             <thead className="bg-augusta-green text-white">
               <tr>
                 <th className="px-3 md:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Pos
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    onClick={() => handleSort("position")}
+                  >
+                    Pos {sortIndicator("position")}
+                  </button>
                 </th>
                 <th className="px-3 md:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Jugador
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    onClick={() => handleSort("player")}
+                  >
+                    Jugador {sortIndicator("player")}
+                  </button>
                 </th>
                 <th
                   className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
-                  onClick={() => setSortBy("net")}
+                  onClick={() => handleSort("net")}
                 >
                   <span className="hidden md:inline">Total </span>Neto{" "}
-                  {sortBy === "net" && "↓"}
+                  {sortIndicator("net")}
                 </th>
                 <th
                   className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
-                  onClick={() => setSortBy("gross")}
+                  onClick={() => handleSort("gross")}
                 >
                   <span className="hidden md:inline">Total </span>Bruto{" "}
-                  {sortBy === "gross" && "↓"}
+                  {sortIndicator("gross")}
+                </th>
+                <th
+                  className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
+                  onClick={() => handleSort("matches")}
+                >
+                  Matches {sortIndicator("matches")}
+                </th>
+                <th
+                  className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
+                  onClick={() => handleSort("avgNet")}
+                >
+                  Prom Neto {sortIndicator("avgNet")}
                 </th>
                 {(!manyEvents || showEvents) &&
                   events.map((event) => (
                     <th
                       key={event.id}
-                      className="px-2 md:px-4 py-3 text-center text-xs font-medium uppercase tracking-wider"
+                      className="px-2 md:px-4 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
+                      onClick={() => handleSort(`event:${event.id}`)}
                     >
-                      {manyEvents ? shortEventHeader(event) : event.name}
+                      {manyEvents ? shortEventHeader(event) : event.name}{" "}
+                      {sortIndicator(`event:${event.id}`)}
                     </th>
                   ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {playersWithPosition.map((player, idx) => {
+              {playersWithPosition.map((player) => {
                 const hasScores = Object.keys(player.events).length > 0;
                 return (
                   <tr
                     key={player.player.id}
                     className={
-                      hasScores && idx < 3
+                      hasScores && player.position <= 3
                         ? "bg-augusta-gold bg-opacity-10"
                         : ""
                     }
@@ -137,7 +303,13 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
                             const diff = player.totalNet - par;
                             return (
                               <span className="font-normal text-xs text-gray-500">
-                                ({diff > 0 ? `+${diff}` : diff === 0 ? "E" : diff})
+                                (
+                                {diff > 0
+                                  ? `+${diff}`
+                                  : diff === 0
+                                    ? "E"
+                                    : diff}
+                                )
                               </span>
                             );
                           })()}
@@ -151,6 +323,16 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
                     <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-medium">
                       {hasScores ? (
                         player.totalGross
+                      ) : (
+                        <span className="text-gray-400 text-xs">NPT</span>
+                      )}
+                    </td>
+                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-medium">
+                      {getMatches(player)}
+                    </td>
+                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-medium">
+                      {hasScores ? (
+                        getAverageNet(player)?.toFixed(2)
                       ) : (
                         <span className="text-gray-400 text-xs">NPT</span>
                       )}
