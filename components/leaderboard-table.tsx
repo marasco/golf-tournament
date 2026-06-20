@@ -31,18 +31,32 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
   }>({ key: "avgNet", direction: "asc" });
   const [showEvents, setShowEvents] = useState(false);
   const [shortView, setShortView] = useState(false);
+  const [bestN, setBestN] = useState<number | null>(null);
 
   const manyEvents = events.length > 4;
 
+  const getMatches = (player: LeaderboardPlayer) =>
+    Object.keys(player.events).length;
+
+  const getBestNets = (player: LeaderboardPlayer): number[] => {
+    const nets = Object.values(player.events).map((e) => e.net);
+    nets.sort((a, b) => a - b);
+    return bestN !== null ? nets.slice(0, bestN) : nets;
+  };
+
+  const getAverageNet = (player: LeaderboardPlayer): number | null => {
+    const bestNets = getBestNets(player);
+    if (bestNets.length === 0) return null;
+    return bestNets.reduce((sum, n) => sum + n, 0) / bestNets.length;
+  };
+
   const rankedPlayers = [...players].sort((a, b) => {
-    const aHasScores = Object.keys(a.events).length > 0;
-    const bHasScores = Object.keys(b.events).length > 0;
-    if (aHasScores && !bHasScores) return -1;
-    if (!aHasScores && bHasScores) return 1;
-    if (!aHasScores && !bHasScores) return 0;
-    const aAvg = a.totalNet / Object.keys(a.events).length;
-    const bAvg = b.totalNet / Object.keys(b.events).length;
-    return aAvg - bAvg;
+    const aAvg = getAverageNet(a);
+    const bAvg = getAverageNet(b);
+    if (aAvg !== null && bAvg === null) return -1;
+    if (aAvg === null && bAvg !== null) return 1;
+    if (aAvg === null && bAvg === null) return 0;
+    return aAvg! - bAvg!;
   });
 
   const rankingByPlayerId = new Map(
@@ -50,14 +64,6 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
       .filter((player) => Object.keys(player.events).length > 0)
       .map((player, index) => [player.player.id, index + 1] as const),
   );
-
-  const getMatches = (player: LeaderboardPlayer) =>
-    Object.keys(player.events).length;
-
-  const getAverageNet = (player: LeaderboardPlayer): number | null => {
-    const matches = getMatches(player);
-    return matches > 0 ? player.totalNet / matches : null;
-  };
 
   const getEventNet = (
     player: LeaderboardPlayer,
@@ -189,6 +195,18 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
   return (
     <div className="space-y-2">
       <div className="flex justify-end gap-2">
+        <select
+          value={bestN ?? "all"}
+          onChange={(e) => setBestN(e.target.value === "all" ? null : Number(e.target.value))}
+          className={`text-sm px-3 py-1.5 rounded-full transition-colors cursor-pointer border-none outline-none ${bestN !== null ? "text-white bg-augusta-gold/60 hover:bg-augusta-gold/80" : "text-white/90 bg-white/10 hover:bg-white/20"}`}
+          title="Cantidad de resultados para promediar"
+        >
+          <option value="all">All</option>
+          <option value="5">Top 5</option>
+          <option value="10">Top 10</option>
+          <option value="15">Top 15</option>
+          <option value="20">Top 20</option>
+        </select>
         <button
           onClick={() => setShortView(!shortView)}
           className="flex items-center gap-1.5 text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full transition-colors"
@@ -286,7 +304,7 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
                   className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
                   onClick={() => handleSort("avgNet")}
                 >
-                  Prom Neto {sortIndicator("avgNet")}
+                  {bestN !== null ? `Prom Top ${bestN}` : "Prom Neto"} {sortIndicator("avgNet")}
                 </th>
                 {(!manyEvents || showEvents) &&
                   events.map((event) => (
