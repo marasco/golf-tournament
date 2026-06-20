@@ -28,8 +28,9 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
   const [sortConfig, setSortConfig] = useState<{
     key: SortKey;
     direction: SortDirection;
-  }>({ key: "net", direction: "asc" });
+  }>({ key: "avgNet", direction: "asc" });
   const [showEvents, setShowEvents] = useState(false);
+  const [shortView, setShortView] = useState(false);
 
   const manyEvents = events.length > 4;
 
@@ -39,7 +40,9 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
     if (aHasScores && !bHasScores) return -1;
     if (!aHasScores && bHasScores) return 1;
     if (!aHasScores && !bHasScores) return 0;
-    return a.totalNet - b.totalNet;
+    const aAvg = a.totalNet / Object.keys(a.events).length;
+    const bAvg = b.totalNet / Object.keys(b.events).length;
+    return aAvg - bAvg;
   });
 
   const rankingByPlayerId = new Map(
@@ -185,8 +188,28 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
 
   return (
     <div className="space-y-2">
-      {manyEvents && (
-        <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => setShortView(!shortView)}
+          className="flex items-center gap-1.5 text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full transition-colors"
+          title={shortView ? "Mostrar vista completa" : "Vista compacta"}
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d={shortView ? "M4 6h16M4 12h16M4 18h16" : "M4 6h16M4 12h10M4 18h6"}
+            />
+          </svg>
+          {shortView ? "Full View" : "Short View"}
+        </button>
+        {manyEvents && (
           <button
             onClick={() => setShowEvents(!showEvents)}
             className="flex items-center gap-1.5 text-sm text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full transition-colors"
@@ -209,8 +232,8 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
             </svg>
             {showEvents ? "Ocultar fechas" : "Ver fechas"}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
@@ -235,20 +258,24 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
                     Jugador {sortIndicator("player")}
                   </button>
                 </th>
-                <th
-                  className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
-                  onClick={() => handleSort("net")}
-                >
-                  <span className="hidden md:inline">Total </span>Neto{" "}
-                  {sortIndicator("net")}
-                </th>
-                <th
-                  className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
-                  onClick={() => handleSort("gross")}
-                >
-                  <span className="hidden md:inline">Total </span>Bruto{" "}
-                  {sortIndicator("gross")}
-                </th>
+                {!shortView && (
+                  <th
+                    className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
+                    onClick={() => handleSort("net")}
+                  >
+                    <span className="hidden md:inline">Total </span>Neto{" "}
+                    {sortIndicator("net")}
+                  </th>
+                )}
+                {!shortView && (
+                  <th
+                    className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
+                    onClick={() => handleSort("gross")}
+                  >
+                    <span className="hidden md:inline">Total </span>Bruto{" "}
+                    {sortIndicator("gross")}
+                  </th>
+                )}
                 <th
                   className="px-3 md:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-augusta-green-dark"
                   onClick={() => handleSort("matches")}
@@ -287,46 +314,49 @@ export function LeaderboardTable({ players, events }: LeaderboardTableProps) {
                     }
                   >
                     <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {hasScores && player.position === 1 && "🏆 "}
                       {hasScores ? player.position : "-"}
                     </td>
                     <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {player.player.name}
                     </td>
-                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-bold text-augusta-green">
-                      {hasScores ? (
-                        <span>
-                          {player.totalNet}{" "}
-                          {(() => {
-                            const rounds = Object.keys(player.events).length;
-                            const par = rounds * 72;
-                            const diff = player.totalNet - par;
-                            return (
-                              <span className="font-normal text-xs text-gray-500">
-                                (
-                                {diff > 0
-                                  ? `+${diff}`
-                                  : diff === 0
-                                    ? "E"
-                                    : diff}
-                                )
-                              </span>
-                            );
-                          })()}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 font-normal text-xs">
-                          NPT
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-medium">
-                      {hasScores ? (
-                        player.totalGross
-                      ) : (
-                        <span className="text-gray-400 text-xs">NPT</span>
-                      )}
-                    </td>
+                    {!shortView && (
+                      <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-bold text-augusta-green">
+                        {hasScores ? (
+                          <span>
+                            {player.totalNet}{" "}
+                            {(() => {
+                              const rounds = Object.keys(player.events).length;
+                              const par = rounds * 72;
+                              const diff = player.totalNet - par;
+                              return (
+                                <span className="font-normal text-xs text-gray-500">
+                                  (
+                                  {diff > 0
+                                    ? `+${diff}`
+                                    : diff === 0
+                                      ? "E"
+                                      : diff}
+                                  )
+                                </span>
+                              );
+                            })()}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 font-normal text-xs">
+                            NPT
+                          </span>
+                        )}
+                      </td>
+                    )}
+                    {!shortView && (
+                      <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-medium">
+                        {hasScores ? (
+                          player.totalGross
+                        ) : (
+                          <span className="text-gray-400 text-xs">NPT</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-center font-medium">
                       {getMatches(player)}
                     </td>
